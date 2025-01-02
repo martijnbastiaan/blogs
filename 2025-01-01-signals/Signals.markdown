@@ -54,7 +54,7 @@ This is very close to how digital designers think: they think in terms of *stabl
 This abstraction is called the digital, sequential abstraction. Digital, because we don't consider any signal levels between 0 or 1. Sequential, because flip-flops can introduce memory/state.
 
 ## Signals
-Somewhat handwavingly, signals over time are linked lists. Each element represents the stable value at each clock tick. The default list (`[]`) implementation in Haskell already gets us pretty close:
+Using the digital, sequential abraction signals over time can be modelled as linked lists. Each element represents the stable value at each clock tick. The default list (`[]`) implementation in Haskell already gets us pretty close:
 
 ```haskell
 data List a
@@ -110,7 +110,7 @@ We can also combine multiple signals and perform some computation on them<sup>2<
 As discussed in the _combinational logic_ section, Clash shouldn't be able to translate the definitions of `fmap` and `liftA2`: after all, they act on infinitely recurring data types! In practice it can, because these operations are marked as _primitive_: Clash will inject a hardcoded bit of HDL any time it sees these operations.
 
 ## Signals 🤝 state
-So far, these operations have been combinational: we haven't introduced any state yet. Worse, with the primitives defined so far we cannot introduce any either. Let's take a step back and see what it would have to look like:
+So far we've only seen combinational operations: we haven't introduced any state yet. Worse, with the introduced primitives we cannot add state any either. Let's take a step back and see what it would have to look like:
 
 ![alt text](wavedrom2.png)
 
@@ -132,14 +132,36 @@ counter = register clock (fmap (+1) counter)
 ```
 
 ## Signals on multiple domains
+One of the questions `/u/netj_nsh` asked was: 
 
+> Does Clash [..] support [..] synchronous design with clock domain crossing?
+
+With the pritmivies introduced we cannot construct any CDC.  In fact, the Haskell compiler will stop us before we even get a chance to run it:
 
 ```haskell
 >>> a = pure 3 :: Signal A Int
 >>> b = pure 5 :: Signal B Int
 >>> liftA2 (+) a b
-*** Type error: could not deduce that A ~ B
+*** Type error: could not deduce A ~ B
 ```
+
+And this is great! It means you can never accidentally cross clock domains in Clash. Of course, sometimes you *do* want to cross clock domains, which can be done with yet another primitive: `unsafeSynchronizer`:
+
+```haskell
+unsafeSynchronizer :: Clock dom1 -> Clock dom2 -> Signal dom1 a -> Signal dom2 a
+```
+
+By extracting 
+
+![alt text](wavedrom3.png)
+
+TODO: Implement unsafesyncer in JavaScript and make interactive using wavedrom
+
+## Signals: a leaky abstraction
+A => B => C, loss of info!
+
+![alt text](wavedrom4.png)
+
 
 ## Recap
 To recap, `Signal` works because its implementation is hidden from the public API. To make the data type usefull still, primitives are offered:
@@ -161,12 +183,11 @@ Multiple domains are "synchronized" by calculating relative offsets between the 
 ``` -->
 
 ## TODO
-* Mention round trip between dom A => dom B => dom A
-  * Mention possible solution
 * Mention dynamic clock domains
-* Mention primitives
 * Clarify Haskell vs Clash
-* Pick Haskell/Clash consistently?
+* Try in REPL / copy paste errors+returns
+* Port to clash-lang.org
+* Port to qbaylogic.com
 
 ## Footnotes
 <sup>1</sup>This isn't entirely true: Haskell provides "escape hatches" such as `unsafePerformIO` that allow you to break purity.
